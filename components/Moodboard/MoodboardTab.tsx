@@ -4,7 +4,7 @@ import { Search, Plus, Upload, Filter, Film, Image as ImageIcon, Loader2, Upload
 import { MoodboardItem, Project } from '../../types';
 import { api } from '../../services/api';
 import MoodboardDetail from './MoodboardDetail';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 interface MoodboardTabProps {
   projectId?: string;
@@ -112,20 +112,12 @@ const MoodboardTab: React.FC<MoodboardTabProps> = ({ projectId: propProjectId })
       setIsGenerating(true);
 
       try {
-          const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-          const response = await ai.models.generateContent({
-              model: 'gemini-3-pro-image-preview',
-              contents: { parts: [{ text: genPrompt }] },
-              config: {
-                  imageConfig: {
-                      aspectRatio: genRatio,
-                      imageSize: "1K"
-                  }
-              }
-          });
+          const ai = new GoogleGenerativeAI(process.env.API_KEY);
+          const model = ai.getGenerativeModel({ model: 'gemini-3-pro-image-preview' });
+          const response = await model.generateContent(genPrompt);
 
           // Extract image
-          for (const part of response.candidates?.[0]?.content?.parts || []) {
+          for (const part of response.response.candidates?.[0]?.content?.parts || []) {
               if (part.inlineData) {
                   const base64 = part.inlineData.data;
                   const mimeType = part.inlineData.mimeType || 'image/png';

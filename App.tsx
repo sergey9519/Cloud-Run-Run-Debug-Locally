@@ -1,6 +1,24 @@
 
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+
+// Local storage helpers
+const STORAGE_KEY = 'studio_roster_data';
+const loadFromStorage = () => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+};
+const saveToStorage = (data: any) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.warn('Failed to save to localStorage', e);
+  }
+};
 import Layout from './components/Layout';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
@@ -27,10 +45,11 @@ const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
-  const [freelancers, setFreelancers] = useState<Freelancer[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [scripts, setScripts] = useState<Script[]>([]);
+  const storedData = loadFromStorage();
+  const [freelancers, setFreelancers] = useState<Freelancer[]>(storedData?.freelancers || []);
+  const [projects, setProjects] = useState<Project[]>(storedData?.projects || []);
+  const [assignments, setAssignments] = useState<Assignment[]>(storedData?.assignments || []);
+  const [scripts, setScripts] = useState<Script[]>(storedData?.scripts || []);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
 
   const fetchData = async () => {
@@ -60,6 +79,13 @@ const App: React.FC = () => {
           setIsLoading(false);
       }
   }, [isAuthenticated]);
+
+  // Save to localStorage whenever data changes
+  useEffect(() => {
+      if (freelancers.length > 0 || projects.length > 0 || assignments.length > 0 || scripts.length > 0) {
+          saveToStorage({ freelancers, projects, assignments, scripts });
+      }
+  }, [freelancers, projects, assignments, scripts]);
 
   const handleLogAction = (action: string, details: string) => {
     const newLog: ActivityLog = {

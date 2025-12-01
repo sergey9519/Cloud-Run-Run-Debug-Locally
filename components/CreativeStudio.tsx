@@ -6,7 +6,7 @@ import { Project, Freelancer, Assignment, Script, KnowledgeSource } from '../typ
 import { Save, PanelRight, PanelLeft, Sparkles, Loader2, ShieldCheck, AlertTriangle, CheckCircle, Database, UploadCloud, Type, LayoutTemplate, Globe, Languages } from 'lucide-react';
 import { RAGEngine, HallucinationGuard, DeepReader } from '../services/intelligence';
 import { useSearchParams } from 'react-router-dom';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { generateContentWithRetry, api } from '../services/api';
 
 interface CreateStudioProps {
@@ -103,7 +103,7 @@ const CreativeStudio: React.FC<CreateStudioProps> = ({ projects, freelancers, as
     if (!scriptContent.trim() || !process.env.API_KEY) return;
     setIsEnhancing(true);
     try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const ai = new GoogleGenerativeAI(process.env.API_KEY);
         const prompt = `Refine and structure this creative writing. Use markdown headers and bullet points. Content: ${scriptContent}`;
         const response = await generateContentWithRetry(ai, { model: 'gemini-2.5-flash', contents: prompt });
         if (response.text) {

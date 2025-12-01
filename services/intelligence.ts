@@ -1,5 +1,5 @@
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { KnowledgeSource, KnowledgeChunk, HallucinationCheck, Project } from '../types';
 import { generateContentWithRetry } from './api';
 
@@ -171,7 +171,7 @@ Weaknesses
 
   async ingestImage(file: File): Promise<KnowledgeSource> {
       const base64Data = await this.fileToBase64(file);
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+      const ai = new GoogleGenerativeAI(process.env.API_KEY!);
       
       const response = await generateContentWithRetry(ai, {
           model: 'gemini-3-pro-preview', // Upgraded for 2025 Standard
@@ -234,7 +234,7 @@ export const HallucinationGuard = {
     if (!process.env.API_KEY || !text) return { hasViolation: false, violations: [] };
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenerativeAI(process.env.API_KEY);
       const prompt = `
       You are a Continuity Editor. Check the following generated text against these Constraints (Context).
       
@@ -305,7 +305,7 @@ export const RAGEngine = {
     `;
 
     // 4. Generate
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenerativeAI(process.env.API_KEY);
     const response = await generateContentWithRetry(ai, {
       model: 'gemini-2.5-flash',
       contents: [

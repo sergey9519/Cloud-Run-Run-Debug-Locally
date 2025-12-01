@@ -1,5 +1,5 @@
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Freelancer, Project, Assignment, Script, AuthResult, ApiResponse, QueryParams, MoodboardItem, Asset, KnowledgeSource } from '../types';
 
 const appId = 'studio-roster-v1';
@@ -8,9 +8,10 @@ const appId = 'studio-roster-v1';
 
 export const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-export const generateContentWithRetry = async (ai: GoogleGenAI, params: any, retries = 3): Promise<any> => {
+export const generateContentWithRetry = async (ai: GoogleGenerativeAI, params: any, retries = 3): Promise<any> => {
     try {
-        const response = await ai.models.generateContent(params);
+        const model = ai.getGenerativeModel({ model: params.model });
+        const response = await model.generateContent(params);
         return response;
     } catch (e) {
         if (retries > 0) {
@@ -217,7 +218,8 @@ export const api = {
               return { data: asset, success: true };
           } catch (e: any) {
               console.error("Upload failed:", e);
-              throw e; // Propagate error to UI
+              const message = e.message || 'Upload failed due to network or server error';
+              throw new Error(`Upload failed: ${message}`);
           }
       },
       delete: async (id: string): Promise<ApiResponse<boolean>> => {

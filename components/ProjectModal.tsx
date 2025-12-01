@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Sparkles, Plus, Trash2, Loader2, User, FileText, BrainCircuit, AlertTriangle, Tag, Calendar } from 'lucide-react';
 import { Project, RoleRequirement, ProjectStatus, Priority } from '../types';
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { generateContentWithRetry } from '../services/api';
 
 interface ProjectModalProps {
@@ -67,7 +67,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose, onSave, in
 
     setIsGenerating(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenerativeAI(process.env.API_KEY);
       const prompt = `
         Role: Creative Producer AI.
         Task: Analyze the context and structure a project.

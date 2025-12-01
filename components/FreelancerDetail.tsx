@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, X, Plus, Sparkles, Loader2, Trash2, Calendar } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Freelancer, Assignment, Project, FreelancerStatus } from '../types';
 import { generateContentWithRetry } from '../services/api';
 
@@ -61,7 +61,7 @@ const FreelancerDetail: React.FC<FreelancerDetailProps> = ({ freelancers, projec
     if (!freelancer.bio || !process.env.API_KEY) return;
     setIsPolishing(true);
     try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const ai = new GoogleGenerativeAI(process.env.API_KEY);
         const response = await generateContentWithRetry(ai, {
             model: 'gemini-2.5-flash',
             contents: `Rewrite this freelancer bio to be more professional, punchy, and highlight key strengths. Bio: "${freelancer.bio}"`

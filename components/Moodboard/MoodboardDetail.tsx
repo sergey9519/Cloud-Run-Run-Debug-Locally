@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { X, Tag, Palette, Check, Film, Image as ImageIcon, Camera, Sparkles, Loader2 } from 'lucide-react';
 import { MoodboardItem } from '../../types';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 interface MoodboardDetailProps {
   item: MoodboardItem;
@@ -56,20 +56,16 @@ const MoodboardDetail: React.FC<MoodboardDetailProps> = ({ item, onClose, onUpda
           });
           
           const cleanBase64 = base64.split(',')[1];
-          const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+          const ai = new GoogleGenerativeAI(process.env.API_KEY);
           
-          const response = await ai.models.generateContent({
-              model: 'gemini-2.5-flash-image',
-              contents: {
-                  parts: [
-                      { inlineData: { mimeType: blob.type, data: cleanBase64 } },
-                      { text: editPrompt }
-                  ]
-              }
-          });
+          const model = ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+          const response = await model.generateContent([
+              { inlineData: { mimeType: blob.type, data: cleanBase64 } },
+              editPrompt
+          ]);
 
           // Check response parts for image
-          for (const part of response.candidates?.[0]?.content?.parts || []) {
+          for (const part of response.response.candidates?.[0]?.content?.parts || []) {
               if (part.inlineData) {
                   const newBase64 = part.inlineData.data;
                   const newMime = part.inlineData.mimeType || 'image/png';

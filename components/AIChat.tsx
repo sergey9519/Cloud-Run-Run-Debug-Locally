@@ -14,6 +14,8 @@ interface AIChatProps {
   customTitle?: string;
   customSystemInstruction?: string;
   customTools?: any[];
+  agentMode?: boolean;
+  contextData?: string;
 }
 
 const AIChat: React.FC<AIChatProps> = ({ onCallAction, customTitle }) => {
@@ -136,11 +138,13 @@ const AIChat: React.FC<AIChatProps> = ({ onCallAction, customTitle }) => {
             placeholder="Ask me anything about your projects, freelancers, or assignments..."
             className="flex-1 p-3 border border-border-subtle rounded-xl resize-none focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm"
             rows={2}
+            aria-label="AI Chat input"
           />
           <button
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
             className="px-4 py-3 bg-primary text-white rounded-xl hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            aria-label="Send message"
           >
             <Send className="w-4 h-4" />
           </button>
