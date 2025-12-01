@@ -1,10 +1,10 @@
 
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreateMoodboardItemDto } from './dto/create-moodboard-item.dto';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Mock DB Interface for Type Safety in this example
-interface MoodboardItem {
+export interface MoodboardItem {
     id: string;
     projectId: string;
     type: 'image' | 'video' | 'gif';
@@ -83,7 +83,7 @@ export class MoodboardService {
      }
 
      try {
-         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+         const ai = new GoogleGenerativeAI(process.env.API_KEY);
          const model = 'gemini-2.5-flash';
          
          // Note: In a real backend, we'd fetch the file buffer from S3/URL here.

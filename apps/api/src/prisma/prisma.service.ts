@@ -19,6 +19,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   project: any = { findMany: () => [], findUnique: () => null, create: () => ({}), update: () => ({}), delete: () => ({}) };
   script: any = { findMany: () => [], findUnique: () => null, create: () => ({}), update: () => ({}), delete: () => ({}) };
 
+  $transaction: any = (ops: any[]) => Promise.all(ops);
+
   async onModuleInit() {
     await this.connectWithRetry();
   }

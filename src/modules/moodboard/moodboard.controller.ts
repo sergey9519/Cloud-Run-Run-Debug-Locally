@@ -1,7 +1,7 @@
 
 import { Controller, Get, Post, Body, Param, Patch, Delete, Query, UseGuards, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { MoodboardService } from './moodboard.service';
+import { MoodboardService, MoodboardItem } from './moodboard.service';
 import { CreateMoodboardItemDto } from './dto/create-moodboard-item.dto';
 
 @Controller('moodboard')
@@ -10,7 +10,7 @@ export class MoodboardController {
 
   @Post(':projectId/upload')
   @UseInterceptors(FileInterceptor('file'))
-  async uploadFile(@Param('projectId') projectId: string, @UploadedFile() file: any) { // Type 'any' used for mock Express.Multer.File
+  async uploadFile(@Param('projectId') projectId: string, @UploadedFile() file: any): Promise<MoodboardItem> { // Type 'any' used for mock Express.Multer.File
     // 1. Upload to Cloud Storage (S3/GCS) -> Get URL
     const mockUrl = `https://cdn.studio.com/${projectId}/${Date.now()}_${file.originalname}`;
     
@@ -26,22 +26,22 @@ export class MoodboardController {
   }
 
   @Get(':projectId')
-  async findAll(@Param('projectId') projectId: string) {
+  async findAll(@Param('projectId') projectId: string): Promise<MoodboardItem[]> {
     return this.moodboardService.findAllByProject(projectId);
   }
 
   @Get(':projectId/search')
-  async search(@Param('projectId') projectId: string, @Query('q') query: string) {
+  async search(@Param('projectId') projectId: string, @Query('q') query: string): Promise<MoodboardItem[]> {
     return this.moodboardService.search(projectId, query);
   }
 
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() updateData: any) {
+  async update(@Param('id') id: string, @Body() updateData: any): Promise<MoodboardItem> {
     return this.moodboardService.update(id, updateData);
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string): Promise<void> {
     return this.moodboardService.remove(id);
   }
 }

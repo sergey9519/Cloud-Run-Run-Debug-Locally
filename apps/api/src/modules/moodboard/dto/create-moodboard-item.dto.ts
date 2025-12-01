@@ -1,8 +1,17 @@
-import { IsString, IsOptional, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsEnum } from 'class-validator';
+
+export enum MediaType {
+  IMAGE = 'image',
+  VIDEO = 'video',
+  GIF = 'gif'
+}
 
 export class CreateMoodboardItemDto {
   @IsString()
   projectId: string;
+
+  @IsEnum(MediaType)
+  type: MediaType;
 
   @IsString()
   @IsOptional()
@@ -18,5 +27,13 @@ export class CreateMoodboardItemDto {
 
   @IsString()
   @IsOptional()
-  type?: string;
+  url?: string;
+
+  @IsArray()
+  @IsOptional()
+  moods?: string[];
+
+  @IsString()
+  @IsOptional()
+  shotType?: string;
 }

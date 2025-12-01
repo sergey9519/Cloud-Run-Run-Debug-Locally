@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PrismaService } from '../../../apps/api/src/prisma/prisma.service';
 import { ImportFreelancerRowSchema, ImportFreelancerRow } from './dto/import-freelancers.dto';
 import * as ExcelJS from 'exceljs';
 import { Readable } from 'stream';

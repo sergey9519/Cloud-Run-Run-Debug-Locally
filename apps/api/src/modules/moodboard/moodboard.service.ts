@@ -2,10 +2,10 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreateMoodboardItemDto } from './dto/create-moodboard-item.dto';
 import { AssetsService } from '../assets/assets.service';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Mock DB Interface for Type Safety
-interface MoodboardItem {
+export interface MoodboardItem {
     id: string;
     projectId: string;
     assetId: string; // Foreign Key to Asset
@@ -130,7 +130,7 @@ export class MoodboardService {
      if (!process.env.API_KEY) return;
 
      try {
-         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+         const ai = new GoogleGenerativeAI(process.env.API_KEY);
          const model = 'gemini-3-pro-preview'; // Upgrade to Pro for deeper analysis
          
          const asset = await this.assetsService.findOne(assetId);

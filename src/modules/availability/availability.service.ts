@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service'; // Assuming generic Prisma module
+import { PrismaService } from '../../../apps/api/src/prisma/prisma.service'; // Assuming generic Prisma module
 
 // Define Assignment locally to avoid dependency on ungenerated Prisma Client
 interface Assignment {
