@@ -8,7 +8,7 @@ interface ImportWizardProps {
   onImport: (type: 'freelancer' | 'project', data: any[]) => void;
 }
 
-const ImportWizard: React.FC<ImportWizardProps> = ({ onImport }) => {
+function ImportWizard({ onImport }: ImportWizardProps) {
   const [importType, setImportType] = useState<'freelancer' | 'project'>('freelancer');
   const [mode, setMode] = useState<'excel' | 'paste'>('excel');
   const [step, setStep] = useState(1);
@@ -153,6 +153,6 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ onImport }) => {
       )}
     </div>
   );
-};
+}
 
 export default ImportWizard;
