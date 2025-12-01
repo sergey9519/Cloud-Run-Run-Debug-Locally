@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; img-src 'self' https: data: blob: storage.googleapis.com drive.google.com lh3.googleusercontent.com; media-src 'self' https: data: blob: storage.googleapis.com;" />
+    <title>Studio Roster</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;800&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'SF Pro Text', '-apple-system', 'sans-serif'],
+              display: ['"Inter Tight"', 'SF Pro Display', 'sans-serif'],
+              mono: ['"JetBrains Mono"', 'SF Mono', 'monospace'],
+            },
+            colors: {
+              app: '#F6F6FA',
+              surface: '#FFFFFF', 
+              subtle: '#ECEEF5',
+              border: { subtle: '#E2E4EA', hover: '#B0B5C8' },
+              ink: { DEFAULT: '#101118', primary: '#101118', secondary: '#5D6070', tertiary: '#8F93A3', inverse: '#FFFFFF' },
+              primary: { DEFAULT: '#2463E6', hover: '#1E4EC8', tint: '#E1EBFF' },
+              edge: { teal: '#18C9AE', magenta: '#E14BF7' },
+              state: { success: '#16A34A', 'success-bg': '#E6F9EC', warning: '#D97706', 'warning-bg': '#FFF4DE', danger: '#DC2626', 'danger-bg': '#FDE4E4' }
+            },
+            backgroundImage: {
+              'rival-gradient': 'linear-gradient(90deg, #2463E6 0%, #18C9AE 50%, #E14BF7 100%)',
+            },
+            boxShadow: {
+              'soft': '0 2px 8px rgba(0,0,0,0.02), 0 1px 2px rgba(0,0,0,0.02)',
+              'card': '0 4px 16px rgba(16, 17, 24, 0.04), 0 1px 2px rgba(16, 17, 24, 0.02)',
+              'elevation': '0 8px 30px rgba(0, 0, 0, 0.04)',
+              'float': '0 20px 40px -10px rgba(16, 17, 24, 0.08)',
+              'glow': '0 0 20px rgba(36, 99, 230, 0.15)',
+            },
+            letterSpacing: {
+              tighter: '-0.04em',
+              tight: '-0.02em',
+              normal: '0em',
+              wide: '0.02em',
+              widest: '0.08em',
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #F6F6FA;
+        color: #101118;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+      
+      .glass-panel {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+      }
+      
+      .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+      .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+      .custom-scrollbar::-webkit-scrollbar-thumb { background: #E5E5EA; border-radius: 4px; }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #D1D1D6; }
+
+      .animate-enter { animation: enter 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+      @keyframes enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+      /* Utility Animations for Drawer/Modals */
+      @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes zoomIn95 { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+
+      .animate-in { animation-fill-mode: forwards; animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
+      .slide-in-from-right { animation-name: slideInRight; }
+      .fade-in { animation-name: fadeIn; }
+      .zoom-in-95 { animation-name: zoomIn95; }
+      
+      .duration-200 { animation-duration: 200ms; }
+      .duration-300 { animation-duration: 300ms; }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.6",
+    "xlsx": "https://aistudiocdn.com/xlsx@^0.18.5",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "zod": "https://aistudiocdn.com/zod@^4.1.13",
+    "@nestjs/common": "https://aistudiocdn.com/@nestjs/common@^11.1.9",
+    "exceljs": "https://aistudiocdn.com/exceljs@^4.4.0",
+    "stream": "https://aistudiocdn.com/stream@^0.0.3",
+    "buffer": "https://aistudiocdn.com/buffer@^6.0.3",
+    "googleapis": "https://aistudiocdn.com/googleapis@^166.0.0",
+    "google-auth-library": "https://aistudiocdn.com/google-auth-library@^10.5.0",
+    "class-validator": "https://aistudiocdn.com/class-validator@^0.14.3",
+    "@nestjs/platform-express": "https://aistudiocdn.com/@nestjs/platform-express@^11.1.9",
+    "@nestjs/config": "https://aistudiocdn.com/@nestjs/config@^4.0.2",
+    "@nestjs/event-emitter": "https://aistudiocdn.com/@nestjs/event-emitter@^3.0.1",
+    "@google-cloud/storage": "https://aistudiocdn.com/@google-cloud/storage@^7.17.3",
+    "crypto": "https://aistudiocdn.com/crypto@^1.0.1",
+    "path": "https://aistudiocdn.com/path@^0.12.7",
+    "@nestjs/core": "https://aistudiocdn.com/@nestjs/core@^11.1.9",
+    "express": "https://aistudiocdn.com/express@^5.1.0",
+    "vite": "https://aistudiocdn.com/vite@^7.2.4",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
+    "@prisma/client": "https://aistudiocdn.com/@prisma/client@^7.0.1",
+    "@google-cloud/translate": "https://aistudiocdn.com/@google-cloud/translate@^9.3.0",
+    "@nestjs/serve-static": "https://aistudiocdn.com/@nestjs/serve-static@^5.0.4"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./index.tsx"></script>
+  </body>
+</html>
