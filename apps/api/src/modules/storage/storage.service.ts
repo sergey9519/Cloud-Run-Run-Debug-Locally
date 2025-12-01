@@ -68,6 +68,17 @@ export class StorageService implements OnModuleInit {
     try {
         const { Storage } = await import('@google-cloud/storage');
 
+        // Log environment variable presence for debugging
+        this.logger.log(`STORAGE_BUCKET set: ${!!this.configService.get('STORAGE_BUCKET')}`);
+        this.logger.log(`CLOUD_STORAGE_ID set: ${!!this.configService.get('CLOUD_STORAGE_ID')}`);
+        this.logger.log(`GCP_PROJECT_ID set: ${!!this.configService.get('GCP_PROJECT_ID')}`);
+        this.logger.log(`GCP_CREDENTIALS set: ${!!this.configService.get('GCP_CREDENTIALS')}`);
+        this.logger.log(`GCP_CLIENT_EMAIL set: ${!!this.configService.get('GCP_CLIENT_EMAIL')}`);
+        this.logger.log(`GCP_PRIVATE_KEY set: ${!!this.configService.get('GCP_PRIVATE_KEY')}`);
+        this.logger.log(`GCS_ACCESS_KEY_ID set: ${!!this.configService.get('GCS_ACCESS_KEY_ID')}`);
+        this.logger.log(`GCS_SECRET_ACCESS_KEY set: ${!!this.configService.get('GCS_SECRET_ACCESS_KEY')}`);
+        this.logger.log(`GOOGLE_APPLICATION_CREDENTIALS env set: ${!!process.env.GOOGLE_APPLICATION_CREDENTIALS}`);
+
         const storageConfig: any = {
           projectId: this.configService.get('GCP_PROJECT_ID') || this.configService.get('GOOGLE_CLOUD_PROJECT'),
           retryOptions: {
