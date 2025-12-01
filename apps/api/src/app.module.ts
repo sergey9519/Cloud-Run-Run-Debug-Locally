@@ -1,6 +1,6 @@
 
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
@@ -19,6 +19,8 @@ import { StorageModule } from './modules/storage/storage.module';
 import { HealthModule } from './health/health.module';
 import { GoogleModule } from './modules/google/google.module';
 import { TranslationModule } from './modules/translation/translation.module';
+import { BullModule } from '@nestjs/bullmq';
+import { ImportsModule } from './modules/imports/imports.module';
 
 @Module({
   imports: [
@@ -28,6 +30,17 @@ import { TranslationModule } from './modules/translation/translation.module';
     }),
     EventEmitterModule.forRoot({
       global: true,
+    }),
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        connection: {
+          host: configService.get<string>('REDIS_HOST', 'localhost'),
+          port: configService.get<number>('REDIS_PORT', 6379),
+          // password: configService.get<string>('REDIS_PASSWORD'), // Uncomment if you have a password
+        },
+      }),
+      inject: [ConfigService],
     }),
     PrismaModule,
     StorageModule,
@@ -41,6 +54,7 @@ import { TranslationModule } from './modules/translation/translation.module';
     ProjectsModule,
     AssignmentsModule,
     ScriptsModule,
+    ImportsModule,
     AvailabilityModule,
     TranslationModule,
     HealthModule,

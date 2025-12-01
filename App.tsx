@@ -1,24 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-
-// Local storage helpers
-const STORAGE_KEY = 'studio_roster_data';
-const loadFromStorage = () => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : null;
-  } catch {
-    return null;
-  }
-};
-const saveToStorage = (data: any) => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch (e) {
-    console.warn('Failed to save to localStorage', e);
-  }
-};
+import { RefreshCw } from 'lucide-react';
+import { Freelancer, Project, Assignment, ActivityLog, ProjectStatus, FreelancerStatus, Priority, Script } from './types';
+import { api } from './services/api';
 import Layout from './components/Layout';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
@@ -31,12 +16,51 @@ import ImportWizard from './components/ImportWizard';
 import PublicProjectView from './components/PublicProjectView';
 import CreateStudio from './components/CreateStudio';
 import MoodboardTab from './components/Moodboard/MoodboardTab';
-import { Freelancer, Project, Assignment, ActivityLog, ProjectStatus, FreelancerStatus, Priority, Script } from './types';
-import { api } from './services/api';
-import { RefreshCw } from 'lucide-react';
+
+// Local storage helpers
+const STORAGE_KEY = 'studio_roster_data';
+
+interface StoredData {
+  freelancers: Freelancer[];
+  projects: Project[];
+  assignments: Assignment[];
+  scripts: Script[];
+}
+
+const loadFromStorage = (): StoredData | null => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return null;
+    const data = JSON.parse(stored);
+    // Basic validation
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+        return data as StoredData;
+    }
+    return null;
+  } catch (error) {
+    console.error("Failed to load from localStorage", error);
+    return null;
+  }
+};
+
+const saveToStorage = (data: StoredData) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.warn('Failed to save to localStorage', e);
+  }
+};
+
+interface DashboardWrapperProps {
+  projects: Project[];
+  freelancers: Freelancer[];
+  assignments: Assignment[];
+  // TODO: Define a more specific type for params
+  onAgentAction: (action: string, params: any, navigate: any) => void;
+}
 
 // Wrapper component to provide navigation context to Dashboard
-const DashboardWrapper = (props: any) => {
+const DashboardWrapper: React.FC<DashboardWrapperProps> = (props) => {
     const navigate = useNavigate();
     return <Dashboard {...props} onCallAction={(action, params) => props.onAgentAction(action, params, navigate)} />;
 };
@@ -110,7 +134,8 @@ const App: React.FC = () => {
         }
         await fetchData();
     } catch (e) {
-        alert("Import Failed");
+        // TODO: Implement a more user-friendly notification system
+        console.error("Import Failed", e);
     } finally {
         setIsLoading(false);
     }
@@ -183,7 +208,8 @@ const App: React.FC = () => {
         }
     } catch (e: any) {
         if (e.message === 'CONFLICT_DETECTED') {
-            alert("Server Conflict: Assignment overlaps with existing booking.");
+            // TODO: Implement a more user-friendly notification system
+            console.error("Server Conflict: Assignment overlaps with existing booking.");
         }
     }
   };

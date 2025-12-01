@@ -10,7 +10,7 @@ export interface DriveFileDTO {
   webViewLink?: string;
   iconLink?: string;
   modifiedTime?: string;
-  size?: string;
+  size?: number;
 }
 
 @Injectable()
@@ -22,8 +22,9 @@ export class DriveService {
 
   async listTeamAssets(): Promise<DriveFileDTO[]> {
     if (!this.TEAM_FOLDER_ID) {
-      this.logger.warn('GOOGLE_TEAM_FOLDER_ID is not set.');
-      return [];
+      const errorMessage = 'GOOGLE_TEAM_FOLDER_ID is not set.';
+      this.logger.error(errorMessage);
+      throw new Error(errorMessage);
     }
 
     const drive = this.clientFactory.createDriveClient();
@@ -32,6 +33,7 @@ export class DriveService {
       const response = await drive.files.list({
         q: `'${this.TEAM_FOLDER_ID}' in parents and trashed = false`,
         fields: 'files(id, name, mimeType, thumbnailLink, webViewLink, iconLink, modifiedTime, size)',
+        // TODO: Implement pagination
         pageSize: 100,
         orderBy: 'folder, modifiedTime desc',
       });
@@ -44,11 +46,11 @@ export class DriveService {
         webViewLink: file.webViewLink,
         iconLink: file.iconLink,
         modifiedTime: file.modifiedTime,
-        size: file.size
+        size: file.size ? parseInt(file.size, 10) : undefined
       }));
     } catch (error) {
       this.logger.error(`Failed to list team assets: ${error.message}`);
-      throw new Error(`Google Drive API Error: ${error.message}`);
+      throw error;
     }
   }
 }

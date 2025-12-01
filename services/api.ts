@@ -8,7 +8,12 @@ const appId = 'studio-roster-v1';
 
 export const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-export const generateContentWithRetry = async (ai: GoogleGenerativeAI, params: any, retries = 3): Promise<any> => {
+interface GenerateContentParams {
+    model: string;
+    [key: string]: any;
+}
+
+export const generateContentWithRetry = async (ai: GoogleGenerativeAI, params: GenerateContentParams, retries = 3): Promise<any> => {
     try {
         const model = ai.getGenerativeModel({ model: params.model });
         const response = await model.generateContent(params);
@@ -171,16 +176,11 @@ const uploadToBackend = async (file: File, projectId?: string): Promise<Asset> =
 export const api = {
   auth: {
     login: async (contactInfo: string): Promise<ApiResponse<AuthResult>> => {
-      // In a real implementation, this would hit /api/auth/login
-      // For now, we return a structural user object but without referencing external mock data
-      const sessionUser = { 
-          id: 'u1', 
-          name: 'Studio Admin', 
-          contactInfo, 
-          role: 'Admin' as const, 
-          avatar: 'https://ui-avatars.com/api/?name=Admin&background=random' 
-      };
-      return { data: { accessToken: 'mock-jwt', user: sessionUser }, success: true };
+      return await fetchApi<AuthResult>('/api/auth/login', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ contactInfo })
+      });
     }
   },
 
@@ -283,7 +283,7 @@ export const api = {
     delete: async (id: string) => {
         try {
             await fetchApi(`/api/freelancers/${id}`, { method: 'DELETE' });
-        } catch(e) {}
+        } catch(e) {console.error(e)}
         localFreelancers = localFreelancers.filter(f => f.id !== id);
         saveToStorage('freelancers', localFreelancers);
         return { data: true, success: true };
@@ -335,13 +335,13 @@ export const api = {
           }
       },
       delete: async (id: string) => {
-          try { await fetchApi(`/api/projects/${id}`, { method: 'DELETE' }); } catch(e) {}
+          try { await fetchApi(`/api/projects/${id}`, { method: 'DELETE' }); } catch(e) {console.error(e)}
           localProjects = localProjects.filter(p => p.id !== id);
           saveToStorage('projects', localProjects);
           return { data: true, success: true };
       },
       deleteBatch: async (ids: string[]) => {
-          try { await fetchApi('/api/projects/batch-delete', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(ids) }); } catch(e) {}
+          try { await fetchApi('/api/projects/batch-delete', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(ids) }); } catch(e) {console.error(e)}
           localProjects = localProjects.filter(p => !ids.includes(p.id));
           saveToStorage('projects', localProjects);
           return { data: true, success: true };
@@ -422,7 +422,7 @@ export const api = {
     listTeamAssets: async (): Promise<ApiResponse<DriveFile[]>> => {
         try {
             return await fetchApi<DriveFile[]>('/api/google/drive/team-assets');
-        } catch (e) {}
+        } catch (e) {console.error(e)}
         return { data: [], success: true };
     },
   },
@@ -433,7 +433,7 @@ export const api = {
           if (projectId) {
               return await fetchApi<MoodboardItem[]>(`/api/moodboard/${projectId}`);
           }
-      } catch (e) {}
+      } catch (e) {console.error(e)}
       return { data: [], success: true };
     },
     
@@ -458,7 +458,7 @@ export const api = {
     },
 
     delete: async (id: string): Promise<ApiResponse<boolean>> => {
-       try { await fetchApi(`/api/moodboard/${id}`, { method: 'DELETE' }); } catch(e) {}
+       try { await fetchApi(`/api/moodboard/${id}`, { method: 'DELETE' }); } catch(e) {console.error(e)}
        return { data: true, success: true };
     }
   },
@@ -473,7 +473,7 @@ export const api = {
       },
       
       delete: async (id: string) => {
-          try { await fetchApi(`/api/knowledge/${id}`, { method: 'DELETE' }); } catch(e) {}
+          try { await fetchApi(`/api/knowledge/${id}`, { method: 'DELETE' }); } catch(e) {console.error(e)}
           return { data: true, success: true };
       }
   },

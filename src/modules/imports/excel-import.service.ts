@@ -1,9 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../apps/api/src/prisma/prisma.service';
 import { ImportFreelancerRowSchema, ImportFreelancerRow } from './dto/import-freelancers.dto';
+import { StorageService } from '../storage/storage.service';
 import * as ExcelJS from 'exceljs';
-import { Readable } from 'stream';
-import { Buffer } from 'buffer';
 
 interface ImportResult {
   processedCount: number;
@@ -16,22 +15,23 @@ export class ExcelImportService {
   private readonly logger = new Logger(ExcelImportService.name);
   private readonly BATCH_SIZE = 100;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storageService: StorageService,
+  ) {}
 
   /**
-   * Processes an Excel file buffer using streaming to minimize memory footprint.
+   * Processes an Excel file from a GCS path using streaming to minimize memory footprint.
+   * @param gcsPath The path to the file in the GCS bucket (e.g., 'imports/file.xlsx').
    */
-  async processFreelancerImport(fileBuffer: Buffer): Promise<ImportResult> {
+  async processFreelancerImport(gcsPath: string): Promise<ImportResult> {
     const result: ImportResult = {
       processedCount: 0,
       successCount: 0,
       errors: [],
     };
 
-    const stream = new Readable();
-    stream.push(fileBuffer);
-    stream.push(null); // End of stream
-
+    const stream = await this.storageService.getReadStream(gcsPath);
     const workbookReader = new ExcelJS.stream.xlsx.WorkbookReader(stream, {
       entries: 'emit',
       sharedStrings: 'cache',
@@ -119,54 +119,43 @@ export class ExcelImportService {
    * Upserts a batch of freelancers transactionally.
    */
   private async flushBatch(freelancers: ImportFreelancerRow[]) {
-    // Prisma createMany does not support Upsert easily on all DBs.
-    // To support "Upsert" (Update if email exists, Create if not) efficiently:
-    // We use a transaction of upserts. It's slower than createMany but safer for idempotency.
-    
+    // This approach is more robust and performant for handling many-to-many relations during an import.
+    // 1. Collect all unique skills from the batch.
+    const uniqueSkillNames = [
+      ...new Set(freelancers.flatMap((f) => f.skills)),
+    ];
+
+    // 2. Use a transaction to ensure data integrity.
     await this.prisma.$transaction(
-        freelancers.map(f => {
-            const { skills, ...basicData } = f;
-            
-            // Handle Skills: We need to upsert skills first or connect them.
-            // For simplicity in this batch op, we will just update the freelancer logic 
-            // and assume skills are string tags handled separately or just ignored in basic Import 
-            // if we don't have logic to create new Skill entities on the fly here.
-            // However, the schema has a Relation. Let's try to create skills if they don't exist.
-            
-            return this.prisma.freelancer.upsert({
-                where: { email: f.email },
-                update: {
-                    ...basicData,
-                    // Note: Updating skills in a bulk import is complex without wiping existing ones.
-                    // Strategy: Add new ones.
-                    skills: {
-                        connectOrCreate: skills.map(skillName => ({
-                            where: { name: skillName },
-                            create: { name: skillName }
-                        })).map(s => ({
-                            freelancerId_skillId: undefined, // invalid for connectOrCreate input, strictly speaking specific syntax needed
-                            // Actually, for M-N explicit, standard connectOrCreate on the relation is tricky.
-                            // Simplified: We skip skill relation update in strict batch stream for speed, 
-                            // OR we accept the overhead. Let's try standard connect logic.
-                            skill: s
-                        }))
-                    }
-                },
-                create: {
-                    ...basicData,
-                    skills: {
-                        create: skills.map(skillName => ({
-                            skill: {
-                                connectOrCreate: {
-                                    where: { name: skillName },
-                                    create: { name: skillName }
-                                }
-                            }
-                        }))
-                    }
-                }
-            });
-        })
-    );
+      async (tx) => {
+        // 3. Upsert all skills to ensure they exist and get their IDs.
+        // `createMany` with `skipDuplicates` is highly efficient.
+        await tx.skill.createMany({
+          data: uniqueSkillNames.map((name) => ({ name })),
+          skipDuplicates: true,
+        });
+
+        // 4. Fetch the skills we just created/ensured exist to map names to IDs.
+        const skillsInDb = await tx.skill.findMany({
+          where: { name: { in: uniqueSkillNames } },
+        });
+        const skillNameToIdMap = new Map(skillsInDb.map((s) => [s.name, s.id]));
+
+        // 5. Create or update each freelancer and connect them to their skills.
+        for (const freelancer of freelancers) {
+          const { skills, ...freelancerData } = freelancer;
+          const skillIds = skills.map((name) => skillNameToIdMap.get(name)).filter(Boolean);
+
+          await tx.freelancer.upsert({
+            where: { email: freelancerData.email },
+            update: freelancerData,
+            create: {
+              ...freelancerData,
+              skills: { create: skillIds.map(skillId => ({ skillId })) },
+            },
+          });
+        }
+      },
+    ); // End of transaction
   }
 }
