@@ -1,0 +1,413 @@
+{
+  "meta": {
+    "project": "Studio Roster",
+    "version": "4.0.0-omniscient",
+    "author": "Principal Systems Architect (The Creator)",
+    "status": "IMMUTABLE_TRUTH",
+    "last_audit": "2025-11-25T15:00:00Z"
+  },
+  "app_context": {
+    "existing_baseline": {
+      "summary": "React (Vite) + Tailwind CSS SPA named 'Studio Roster'. Currently operates with in-memory mock data/state for managing freelancers, projects, and assignments. Features include a drag-and-drop scheduler, Excel/Resume import wizard (client-side AI), and public read-only project views.",
+      "stack": {
+        "frontend": "React 18, Tailwind CSS, Lucide React, SheetJS (xlsx), @google/genai",
+        "backend": "None (In-memory Mock Services)",
+        "database": "None (In-memory Arrays)"
+      },
+      "current_features": [
+        "Dashboard for Projects and Freelancers with filtering/sorting",
+        "Drag-and-drop Assignment Gantt Chart (AssignmentView)",
+        "Client-side Excel Import & Resume Parsing via Gemini Flash",
+        "AI-powered Freelancer Suggestion engine (Client-side)",
+        "Public Read-Only Project Links (Mock implementation)",
+        "Role-based access control simulation (Login screen)"
+      ]
+    },
+    "goals": [
+      "Migrate from in-memory mock data to a persistent PostgreSQL database",
+      "Implement a NestJS backend to handle business logic (conflicts, auth, imports)",
+      "Secure the 'Share Link' feature with real token management and expiration",
+      "Formalize the Data Model with Prisma ORM",
+      "Enable robust server-side Excel processing and validation",
+      "Achieve 99.999% availability (Five Nines) via Active-Active Global Replication",
+      "Ensure SOC2/GDPR compliance via audit logs, encryption at rest, and Zero Trust networking"
+    ]
+  },
+  "architecture": {
+    "existing_baseline": "Monolithic Frontend holding all state in `App.tsx`. Logic for imports, assignments, and conflicts is executed in the browser.",
+    "new_enhancements": {
+      "backend_reorg": "Introduce a NestJS Monorepo (Nx) separating API Gateway, Microservices, and Workers. The React app becomes a purely consumer client.",
+      "infrastructure": {
+        "global_routing": "AWS Global Accelerator (Anycast IP) for sub-millisecond entry into the AWS backbone.",
+        "compute": "AWS EKS (Kubernetes) with Karpenter for just-in-time node scaling across Multi-AZs.",
+        "networking": "Cilium (eBPF) for high-performance CNI, replacing standard kube-proxy, with Hubble for deep visibility.",
+        "service_mesh": "Istio (Ambient Mesh mode) for mTLS and Traffic Splitting without sidecar overhead.",
+        "database": "Amazon Aurora PostgreSQL Global Database (Active-Passive with < 1s Replication Latency) + pg_partman.",
+        "caching": "Redis (Global Datastore) + DragonflyDB for geo-replicated session state.",
+        "secrets": "External Secrets Operator (ESO) syncing from AWS Secrets Manager directly into K8s Secrets.",
+        "feature_flags": "LaunchDarkly for Trunk-Based Development and gradual rollouts.",
+        "cdn": "CloudFront with Lambda@Edge for dynamic header injection and security headers.",
+        "ci_cd": "GitHub Actions -> SBOM Generation -> Image Signing (Cosign) -> Kyverno Policy Check -> ArgoCD (GitOps)."
+      },
+      "layers": [
+        "Edge Layer (Cloudflare/AWS WAF): DDoS protection, Bot Management, and SSL termination.",
+        "Gateway Layer (Nginx/Traefik + GraphQL Mesh): Protocol translation and schema stitching.",
+        "AI Gateway Layer (Portkey/Helicone): Intermediate proxy for LLM calls handling Semantic Caching, PII Redaction, and Cost Guardrails.",
+        "API Layer (NestJS + Mercurius): Hybrid REST/GraphQL endpoints with Zod validation and Auth guards.",
+        "Service Layer (Business Logic): Hexagonal Architecture (Ports & Adapters) to decouple core logic from infra.",
+        "Worker Layer (BullMQ): Asynchronous processors for CPU-intensive tasks (AI Parsing, Excel Ingestion).",
+        "Data Access Layer (Prisma Client): Strictly typed interface with PostgreSQL + Read Replicas + RLS Enforcement.",
+        "Event Bus (Kafka/Redpanda): For Change Data Capture (CDC) streaming to Audit Logs and Analytics."
+      ],
+      "notes": "The frontend 'ImportWizard' logic remains client-side for UX, but 'Finish Import' dispatches a job ID to the backend for async processing."
+    }
+  },
+  "data_model_enhancements": [
+    {
+      "entity": "Tenant (Organization)",
+      "changes": [
+        { "field": "create_table", "type": "Tenant", "description": "Root entity for Multi-Tenancy", "nullable": false },
+        { "field": "slug", "type": "string", "description": "URL friendly identifier", "nullable": false },
+        { "field": "plan", "type": "enum(FREE, PRO, ENTERPRISE)", "description": "Subscription Tier", "nullable": false },
+        { "field": "settings", "type": "jsonb", "description": "Feature flags and localized configs", "nullable": true }
+      ],
+      "indexes": [
+        { "name": "idx_tenant_slug", "fields": ["slug"], "unique": true }
+      ],
+      "backwards_compatibility": "New root entity. All downstream entities (User, Project) must gain `tenantId` FK for RLS."
+    },
+    {
+      "entity": "User",
+      "changes": [
+        { "field": "create_table", "type": "User", "description": "System users (Admin, Manager, Viewer)", "nullable": false },
+        { "field": "tenantId", "type": "string", "description": "FK to Tenant (RLS Context)", "nullable": false },
+        { "field": "passwordHash", "type": "string", "description": "Argon2id (phc format) hashed password", "nullable": false },
+        { "field": "role", "type": "enum(ADMIN, MANAGER, VIEWER)", "description": "RBAC Role", "nullable": false },
+        { "field": "refreshTokenHash", "type": "string", "description": "Secure storage for refresh token rotation capabilities", "nullable": true },
+        { "field": "mfaSecret", "type": "string", "description": "TOTP Secret (Encrypted)", "nullable": true },
+        { "field": "mfaEnabled", "type": "boolean", "description": "Multi-factor authentication flag", "nullable": false, "default": false }
+      ],
+      "indexes": [
+        { "name": "idx_user_email_tenant", "fields": ["email", "tenantId"], "unique": true }
+      ],
+      "backwards_compatibility": "Replaces `MOCK_USERS`. Existing frontend mock users will need to be seeded into the DB."
+    },
+    {
+      "entity": "Freelancer",
+      "changes": [
+        { "field": "create_table", "type": "Freelancer", "description": "Talent roster", "nullable": false },
+        { "field": "tenantId", "type": "string", "description": "FK to Tenant (RLS Context)", "nullable": false },
+        { "field": "role", "type": "string", "description": "Primary role title", "nullable": true },
+        { "field": "primarySkill", "type": "string", "description": "Main skill for quick filtering", "nullable": true },
+        { "field": "portfolioUrl", "type": "string", "description": "Link to portfolio", "nullable": true },
+        { "field": "timezone", "type": "string", "description": "IANA timezone string", "nullable": true },
+        { "field": "status", "type": "enum(ACTIVE, INACTIVE, ARCHIVED)", "description": "Availability status", "nullable": true },
+        { "field": "notes", "type": "text", "description": "Internal notes (PII - Encrypted at rest via pgcrypto)", "nullable": true },
+        { "field": "searchVector", "type": "tsvector", "description": "Postgres Full Text Search vector (weights: A=Role, B=Skills, C=Bio)", "nullable": true },
+        { "field": "embedding", "type": "vector(768)", "description": "pgvector embedding for Gemini text-embedding-004 (768 dim)", "nullable": true }
+      ],
+      "indexes": [
+        { "name": "idx_freelancer_email_tenant", "fields": ["email", "tenantId"], "unique": true },
+        { "name": "idx_freelancer_status", "fields": ["status"] },
+        { "name": "idx_freelancer_role", "fields": ["role"] },
+        { "name": "idx_freelancer_search", "fields": ["searchVector"], "method": "gin" },
+        { "name": "idx_freelancer_embedding", "fields": ["embedding"], "method": "hnsw", "ops": "vector_cosine_ops" }
+      ],
+      "backwards_compatibility": "Maps directly to `Freelancer` interface in `types.ts`. Existing `skills` array can be stored as a Postgres text[] array or a relation."
+    },
+    {
+      "entity": "Skill",
+      "changes": [
+        { "field": "create_table", "type": "Skill", "description": "Normalized skills dictionary", "nullable": false },
+        { "field": "tenantId", "type": "string", "description": "FK to Tenant (RLS Context)", "nullable": false },
+        { "field": "name", "type": "string", "description": "Canonical skill name", "nullable": false },
+        { "field": "category", "type": "string", "description": "Optional category", "nullable": true }
+      ],
+      "indexes": [
+        { "name": "idx_skill_name_tenant", "fields": ["name", "tenantId"], "unique": true }
+      ],
+      "backwards_compatibility": "Additive. Can be populated from existing freelancer skills tags."
+    },
+    {
+      "entity": "Project",
+      "changes": [
+        { "field": "create_table", "type": "Project", "description": "Campaigns/Jobs", "nullable": false },
+        { "field": "tenantId", "type": "string", "description": "FK to Tenant (RLS Context)", "nullable": false },
+        { "field": "shareToken", "type": "string", "description": "Unique token for public access (128-bit entropy/NanoID)", "nullable": true },
+        { "field": "shareTokenCreatedAt", "type": "DateTime", "description": "When token was generated", "nullable": true },
+        { "field": "shareTokenExpiresAt", "type": "DateTime", "description": "Expiration for link", "nullable": true },
+        { "field": "shareTokenRevokedAt", "type": "DateTime", "description": "Soft delete for token", "nullable": true },
+        { "field": "ownerId", "type": "string", "description": "FK to User", "nullable": true }
+      ],
+      "indexes": [
+        { "name": "idx_project_share_token", "fields": ["shareToken"], "unique": true },
+        { "name": "idx_project_owner", "fields": ["ownerId"] }
+      ],
+      "backwards_compatibility": "Maps to `Project` interface. Frontend will simply start sending/receiving these fields."
+    },
+    {
+      "entity": "Assignment",
+      "changes": [
+        { "field": "create_table", "type": "Assignment", "description": "Linking table (Partitioned by range)", "nullable": false },
+        { "field": "tenantId", "type": "string", "description": "FK to Tenant (RLS Context)", "nullable": false },
+        { "field": "projectId", "type": "string", "description": "FK to Project", "nullable": false },
+        { "field": "freelancerId", "type": "string", "description": "FK to Freelancer", "nullable": false },
+        { "field": "range", "type": "daterange", "description": "Postgres range type for efficient overlap queries", "nullable": true }
+      ],
+      "indexes": [
+        { "name": "idx_assignment_freelancer_range", "fields": ["freelancerId", "range"], "method": "gist" },
+        { "name": "idx_assignment_project", "fields": ["projectId"] },
+        { "name": "idx_assignment_partition_key", "fields": ["range"] }
+      ],
+      "backwards_compatibility": "Replaces `MOCK_ASSIGNMENTS`. The `range` column optimizes the conflict detection logic currently done in JS."
+    },
+    {
+      "entity": "AuditLog",
+      "changes": [
+        { "field": "create_table", "type": "AuditLog", "description": "Immutable ledger populated via CDC (Debezium)", "nullable": false },
+        { "field": "tenantId", "type": "string", "description": "FK to Tenant", "nullable": false },
+        { "field": "userId", "type": "string", "description": "Actor ID", "nullable": false },
+        { "field": "action", "type": "string", "description": "Event Type (e.g., USER_LOGIN, PROJECT_DELETE)", "nullable": false },
+        { "field": "ipAddress", "type": "inet", "description": "Request IP", "nullable": true },
+        { "field": "userAgent", "type": "string", "description": "Client Device", "nullable": true },
+        { "field": "beforeImage", "type": "jsonb", "description": "State before change (CDC)", "nullable": true },
+        { "field": "afterImage", "type": "jsonb", "description": "State after change (CDC)", "nullable": true },
+        { "field": "timestamp", "type": "DateTime", "description": "Event time", "nullable": false }
+      ],
+      "indexes": [
+        { "name": "idx_audit_log_timestamp", "fields": ["timestamp"], "method": "brin" },
+        { "name": "idx_audit_log_tenant", "fields": ["tenantId"] }
+      ],
+      "backwards_compatibility": "New core requirement for God Mode security."
+    }
+  ],
+  "api_enhancements": [
+    {
+      "endpoint": { "path": "/auth/login", "method": "POST" },
+      "change_type": "new",
+      "summary": "Authenticate user and return JWT pair (Access + Refresh).",
+      "request": { "body": { "email": "string", "password": "string", "tenantId": "optional_string" } },
+      "response": { "data_type": "AuthResult", "fields": ["accessToken", "refreshToken (HttpOnly Cookie)", "user", "activeTenant"] },
+      "validation_rules": ["Rate limit: 5 attempts per minute", "Zod Email Validation", "Adaptive Risk Analysis (Geo-velocity check)"],
+      "backwards_compatibility": "Replaces mock login timeout in `Login.tsx`."
+    },
+    {
+      "endpoint": { "path": "/graphql", "method": "POST" },
+      "change_type": "new",
+      "summary": "Unified data graph for dashboarding.",
+      "request": { "body": { "query": "GQL Query", "variables": "JSON" } },
+      "response": { "data_type": "GraphResponse", "fields": ["data", "errors", "extensions (Tracing)"] },
+      "validation_rules": ["Query Complexity Limit", "Depth Limit", "Persisted Query Whitelist"],
+      "backwards_compatibility": "New interface for high-performance dashboard loading."
+    },
+    {
+      "endpoint": { "path": "/freelancers", "method": "GET" },
+      "change_type": "extend",
+      "summary": "List freelancers with advanced filtering and availability calculation.",
+      "request": {
+        "query_params": {
+          "search": "string",
+          "role": "string",
+          "skills": "string[]",
+          "status": "string",
+          "available_from": "date",
+          "page": "number",
+          "limit": "number"
+        }
+      },
+      "response": { "data_type": "Paginated<Freelancer>", "fields_added": ["nextAvailableDate", "relevanceScore"] },
+      "backwards_compatibility": "Frontend currently filters client-side. New params allow server-side filtering."
+    },
+    {
+      "endpoint": { "path": "/assignments", "method": "POST" },
+      "change_type": "new",
+      "summary": "Create assignment with server-side conflict detection.",
+      "request": { "headers": { "Idempotency-Key": "UUID" }, "body": { "freelancerId": "uuid", "projectId": "uuid", "startDate": "ISO8601", "endDate": "ISO8601", "force": "boolean" } },
+      "response": { "data_type": "Assignment", "error_codes": ["CONFLICT_DETECTED (409)"] },
+      "validation_rules": ["Check overlap in DB using GIST index/range overlap operator (&&).", "Idempotency Check", "Tenant Isolation Check"],
+      "backwards_compatibility": "Frontend `checkConflict` becomes a pre-check UI hint; server is source of truth."
+    },
+    {
+      "endpoint": { "path": "/imports/batch", "method": "POST" },
+      "change_type": "new",
+      "summary": "Queue bulk upsert job.",
+      "request": { "headers": { "Idempotency-Key": "UUID" }, "body": { "type": "'freelancer' | 'project'", "records": "Array<DTO>" } },
+      "response": { "data_type": "JobId", "fields": ["jobId", "statusUrl", "estimatedCompletion"] },
+      "validation_rules": ["Atomic transaction", "Email uniqueness check", "Offload to BullMQ for datasets > 50 rows"],
+      "backwards_compatibility": "Replaces `handleImport` in `App.tsx`. Allows the robust frontend wizard to commit data reliably."
+    },
+    {
+      "endpoint": { "path": "/projects/{id}/suggest-freelancers", "method": "GET" },
+      "change_type": "new",
+      "summary": "Server-side recommendation engine using Vector Search.",
+      "request": { "query_params": { "role": "string", "skills": "string[]", "start": "date", "end": "date" } },
+      "response": { "data_type": "Suggestion[]", "fields": ["freelancerId", "score", "reason", "availabilityStatus"] },
+      "backwards_compatibility": "Replaces client-side `calculateScore` in `ProjectDetail.tsx`."
+    },
+    {
+      "endpoint": { "path": "/projects/{id}/share-link", "method": "POST" },
+      "change_type": "new",
+      "summary": "Generate or regenerate a secure share token.",
+      "request": { "body": { "regenerate": "boolean" } },
+      "response": { "data_type": "ShareLinkDTO", "fields": ["token", "url", "expiresAt"] },
+      "validation_rules": ["User must be Admin or Manager"],
+      "backwards_compatibility": "Replaces mock random string generation."
+    },
+    {
+      "endpoint": { "path": "/public/projects/:token", "method": "GET" },
+      "change_type": "new",
+      "summary": "Get limited project details for public view.",
+      "request": { "params": { "token": "string" } },
+      "response": { "data_type": "PublicProjectDTO", "fields": ["name", "client", "timeline", "assignments(redacted)"] },
+      "validation_rules": ["Check expiry", "Check revokedAt", "Exclude internal notes/budget"],
+      "backwards_compatibility": "Replaces `PublicProjectView` mock lookup."
+    },
+    {
+      "endpoint": { "path": "/health", "method": "GET" },
+      "change_type": "new",
+      "summary": "Liveness and Readiness probes for K8s.",
+      "response": { "data_type": "HealthStatus", "fields": ["dbStatus", "redisStatus", "uptime", "replicationLag"] },
+      "backwards_compatibility": "Essential for container orchestration."
+    }
+  ],
+  "ux_enhancements": {
+    "global": {
+      "loading_states": "Replace explicit timeouts with actual network loading states (React Query / TanStack Query).",
+      "error_handling": "Global Error Boundary and Toast notifications for API failures."
+    },
+    "import_wizard": {
+      "upload_progress": "Real upload progress bar linked to WebSocket for job status updates.",
+      "validation_feedback": "Server-side validation errors displayed in the review table."
+    },
+    "project_detail": {
+      "live_updates": "Optimistic UI updates for status changes and assignments (Server-Sent Events / SSE).",
+      "suggestions": "Fetching suggestions from server allows searching across thousands of freelancers, not just loaded ones."
+    }
+  },
+  "security_and_auth": {
+    "roles": [
+      { "name": "Admin", "permissions": ["manage_users", "full_import", "delete_project", "view_audit_logs", "manage_billing"] },
+      { "name": "Manager", "permissions": ["create_project", "assign", "view_rates"] },
+      { "name": "Viewer", "permissions": ["read_only"] }
+    ],
+    "hardening": [
+      "Zero Trust Networking (mTLS via Istio) between all microservices.",
+      "Row Level Security (RLS) enabled on all Postgres tables using `tenantId`.",
+      "JWT (Access Token) + HttpOnly Cookie (Refresh Token) for session management.",
+      "Argon2id for password hashing.",
+      "CORS restricted to frontend domain with strict origin checks.",
+      "Rate limiting on public share links and login endpoints (Throttler).",
+      "Input sanitization (class-validator) to prevent XSS on notes/descriptions.",
+      "Content Security Policy (CSP) headers enabled via Helmet.",
+      "Distributed Tracing (OpenTelemetry) with W3C Trace Context propagation.",
+      "Software Bill of Materials (SBOM) generation in CI pipeline to track supply chain risks."
+    ],
+    "ai_governance": {
+      "pii_redaction": "Automatic DLP scanning on prompt inputs using Presidio before sending to LLM.",
+      "cost_guardrails": "Per-tenant token quotas enforced at the AI Gateway layer.",
+      "audit": "Full capture of Prompts/Completions (hashed) for compliance review."
+    }
+  },
+  "non_functional_enhancements": {
+    "performance": [
+      "Pagination for Freelancer List (Keyset pagination for O(1) retrieval)",
+      "Database Partitioning for Assignment tables (Time-series) via pg_partman",
+      "GIST indexes for assignment date ranges to optimize overlap checks",
+      "Response compression (Brotli/Gzip) at Gateway level",
+      "HTTP/3 (QUIC) enabled on load balancers for faster connection establishment",
+      "Semantic Caching (Redis Vector) for LLM responses to reduce API costs by ~30%"
+    ],
+    "testing": [
+      "E2E tests (Playwright) for Import Flow and Assignment Drag-and-Drop",
+      "Unit tests for Conflict Detection Service and Scoring Algorithm",
+      "Mutation Testing (Stryker) to verify test suite quality",
+      "Load Testing (k6) to verify 200ms SLO under 1000 RPS",
+      "Vulnerability Scanning (Snyk) in CI/CD pipeline",
+      "Chaos Engineering (Chaos Mesh) for resilience testing (Pod kill, Network delay)"
+    ],
+    "monitoring": [
+      "Structured logging (Pino/Winston) for Import results and Auth events",
+      "Vectorized Logs Storage (Loki/ClickHouse) for high-volume ingestion",
+      "Health check endpoint for k8s/load balancers",
+      "APM (Datadog/NewRelic) integration for latency tracking",
+      "Cost Monitoring (Kubecost) for per-tenant infrastructure spend attribution"
+    ]
+  },
+  "implementation_plan": {
+    "phases": [
+      {
+        "name": "Phase 0: Infrastructure & DevOps",
+        "tasks": [
+          "Dockerize Frontend (Multi-stage build) and Backend",
+          "Provision EKS + RDS Global + ElastiCache (Terraform/Crossplane)",
+          "Setup GitOps Pipeline (ArgoCD + GitHub Actions)"
+        ]
+      },
+      {
+        "name": "Phase 1: Backend Foundation (Multi-Tenant)",
+        "tasks": [
+          "Init NestJS Monorepo",
+          "Setup Prisma + Postgres + RLS Policies",
+          "Implement Tenant/User Auth (JWT + Refresh Rotation + MFA support)",
+          "Seed DB with existing mock data for dev"
+        ]
+      },
+      {
+        "name": "Phase 2: Core Entities & API",
+        "tasks": [
+          "Create CRUD endpoints for Freelancers/Projects with Tenant Scoping",
+          "Migrate `App.tsx` state fetch to `useQuery` (React Query)",
+          "Remove `mockData.ts` dependency in components"
+        ]
+      },
+      {
+        "name": "Phase 3: Advanced Logic & Queues",
+        "tasks": [
+          "Implement Server-side Conflict Detection Service",
+          "Implement BullMQ Worker for Batch Imports",
+          "Implement CDC (Debezium) for Audit Logs",
+          "Implement Public Share Link logic and public DTOs"
+        ]
+      },
+      {
+        "name": "Phase 4: AI Governance & Global Scale",
+        "tasks": [
+          "Deploy AI Gateway (Portkey)",
+          "Configure Semantic Caching",
+          "Enable Cross-Region Replication"
+        ]
+      }
+    ]
+  },
+  "risks_and_mitigations": [
+    {
+      "risk": "Data migration from Excel during transition might fail validation.",
+      "mitigation": "Keep the robust 'Import Wizard' cleaning step on the frontend before sending to API. Allow 'force' save with warnings."
+    },
+    {
+      "risk": "Date timezone handling for remote freelancers.",
+      "mitigation": "Store all dates in UTC in DB; Frontend converts to local time based on Freelancer's timezone field. Use `luxon` library."
+    },
+    {
+      "risk": "Long-running AI imports timing out HTTP requests.",
+      "mitigation": "Offload to BullMQ background workers. Return 202 Accepted and poll for status."
+    },
+    {
+      "risk": "Partitioning strategy complexity for small initial datasets.",
+      "mitigation": "Use `pg_partman` with dynamic partition creation to handle growth automatically without manual maintenance."
+    },
+    {
+      "risk": "RLS performance overhead.",
+      "mitigation": "Benchmark Policy execution time; Ensure `tenantId` is included in all composite indexes."
+    }
+  ],
+  "success_metrics": [
+    "Zero data loss during imports",
+    "Sub-100ms response for conflict checks",
+    "Successful secure access of public links by external clients",
+    "99.999% availability of read-only views",
+    "API Latency p99 < 200ms",
+    "Infrastructure recovery time objective (RTO) < 1 minute",
+    "100% of PII filtered from LLM prompts"
+  ]
+}
