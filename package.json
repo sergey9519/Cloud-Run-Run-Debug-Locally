@@ -3,16 +3,20 @@
   "version": "0.0.1",
   "description": "AI-Native Agency Management System",
   "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "nest build && vite build",
-    "build:api": "nest build",
-    "start": "node dist/apps/api/main",
-    "start:dev": "nest start --watch",
-    "start:prod": "node dist/apps/api/main",
-    "lint": "echo 'Skipping lint for now - focused on build fixes'",
-    "test": "echo \"No tests specified\" && exit 0",
-    "test:watch": "echo \"No tests specified\" && exit 0"
+    "dev": "npm run dev --workspace=web",
+    "dev:api": "npm run start:dev --workspace=api",
+    "build": "npm run build --workspaces",
+    "build:api": "npm run build --workspace=api",
+    "build:web": "npm run build --workspace=web",
+    "start:api": "npm start --workspace=api",
+    "lint": "npm run lint --workspaces --if-present",
+    "lint:fix": "npm run lint -- --fix",
+    "test": "npm test --workspaces --if-present",
+    "test:watch": "npm run test:watch --workspaces --if-present"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.17.3",
