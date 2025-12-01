@@ -4,7 +4,7 @@ import { Project, Freelancer, Assignment, Priority, ProjectStatus } from '../typ
 import { Link } from 'react-router-dom';
 import AIChat from './AIChat';
 import DriveFileBrowser from './DriveFileBrowser';
-import { Type, FunctionDeclaration } from "@google/genai";
+import { SchemaType, FunctionDeclarationSchema } from "@google/generative-ai";
 
 interface DashboardProps {
   projects: Project[];
@@ -171,16 +171,16 @@ const Dashboard: React.FC<DashboardProps> = ({ projects, freelancers, assignment
     const urgentProjects = projects.filter(p => p.priority === Priority.URGENT || p.priority === Priority.HIGH).length;
     
     // Tools definition for Dashboard Chat
-    const dashboardTools: FunctionDeclaration[] = [
+    const dashboardTools: any[] = [
         {
             name: "create_project",
             description: "Create a new project in the system.",
             parameters: {
-                type: Type.OBJECT,
+                type: SchemaType.OBJECT,
                 properties: {
-                    name: { type: Type.STRING, description: "Project name" },
-                    clientName: { type: Type.STRING, description: "Client name" },
-                    description: { type: Type.STRING, description: "Brief description" }
+                    name: { type: SchemaType.STRING, description: "Project name" },
+                    clientName: { type: SchemaType.STRING, description: "Client name" },
+                    description: { type: SchemaType.STRING, description: "Brief description" }
                 },
                 required: ["name"]
             }
@@ -189,9 +189,9 @@ const Dashboard: React.FC<DashboardProps> = ({ projects, freelancers, assignment
             name: "navigate",
             description: "Navigate to a specific page.",
             parameters: {
-                type: Type.OBJECT,
+                type: SchemaType.OBJECT,
                 properties: {
-                    path: { type: Type.STRING, description: "Path to navigate to (e.g. /projects, /freelancers)" }
+                    path: { type: SchemaType.STRING, description: "Path to navigate to (e.g. /projects, /freelancers)" }
                 },
                 required: ["path"]
             }

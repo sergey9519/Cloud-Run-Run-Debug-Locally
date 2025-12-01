@@ -1,0 +1,190 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id           String @id @default(cuid())
+  name         String
+  contactInfo  String @unique
+  role         String @default("Viewer")
+  avatar       String?
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Freelancer {
+  id              String   @id @default(cuid())
+  name            String
+  contactInfo     String   @unique
+  phone           String?
+  role            String
+  primarySkill    String?
+  bio             String?
+  portfolioUrl    String?
+  skills          Json     @default("[]")
+  rate            Float
+  currency        String   @default("USD")
+  timezone        String   @default("UTC")
+  status          String   @default("Active")
+  utilization     Float    @default(0)
+  avatar          String?
+  notes           String?
+  nextAvailableDate DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  assignments     Assignment[]
+}
+
+model Project {
+  id                String   @id @default(cuid())
+  name              String
+  clientName        String?
+  category          String?
+  activation        String?
+  description       String?
+  references        Json     @default("[]")
+  notes             String?
+  tags              Json     @default("[]")
+  toneAttributes    Json     @default("[]")
+  moodBoard         Json     @default("[]")
+  brandGuidelines   Json?
+  format            String?
+  length            String?
+  status            String   @default("Planned")
+  priority          String?
+  startDate         DateTime?
+  dueDate           DateTime?
+  idealPostDate     DateTime?
+  budget            String?
+  assignedToId      String?
+  shareToken        String?
+  shareTokenCreatedAt DateTime?
+  shareTokenExpiresAt DateTime?
+  shareTokenRevokedAt DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  roleRequirements  RoleRequirement[]
+  assignments       Assignment[]
+  assets            Asset[]
+  scripts           Script[]
+  moodboardItems    MoodboardItem[]
+  knowledgeBase     ProjectContextItem[]
+}
+
+model RoleRequirement {
+  id             String  @id @default(cuid())
+  projectId      String
+  role           String
+  count          Int     @default(1)
+  filled         Int     @default(0)
+  skillsRequired Json    @default("[]")
+  
+  project        Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Assignment {
+  id            String   @id @default(cuid())
+  projectId     String
+  freelancerId  String
+  role          String
+  startDate     DateTime
+  endDate       DateTime
+  allocation    Int      @default(100)
+  status        String   @default("Tentative")
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  freelancer    Freelancer @relation(fields: [freelancerId], references: [id], onDelete: Cascade)
+}
+
+model Asset {
+  id          String   @id @default(cuid())
+  projectId   String?
+  fileName    String
+  mimeType    String
+  sizeBytes   Int
+  publicUrl   String?
+  storageKey  String?
+  createdAt   DateTime @default(now())
+  
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  moodboardItems MoodboardItem[]
+}
+
+model MoodboardItem {
+  id            String   @id @default(cuid())
+  projectId     String
+  assetId       String?
+  type          String   @default("image")
+  url           String
+  thumbnailUrl  String?
+  caption       String
+  tags          Json     @default("[]")
+  moods         Json     @default("[]")
+  colors        Json     @default("[]")
+  shotType      String?
+  status        String   @default("ready")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  project       Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  asset         Asset?  @relation(fields: [assetId], references: [id], onDelete: SetNull)
+}
+
+model Script {
+  id          String   @id @default(cuid())
+  projectId   String?
+  title       String
+  content     String
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+}
+
+model ProjectContextItem {
+  id          String   @id @default(cuid())
+  projectId   String
+  title       String
+  content     String
+  category    String   @default("General")
+  updatedAt   DateTime @default(now())
+  
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model KnowledgeSource {
+  id              String   @id @default(cuid())
+  type            String
+  title           String
+  url             String?
+  assetId         String?
+  originalContent String
+  summary         String?
+  status          String   @default("processing")
+  createdAt       DateTime @default(now())
+  
+  chunks          KnowledgeChunk[]
+}
+
+model KnowledgeChunk {
+  id              String   @id @default(cuid())
+  sourceId        String
+  text            String
+  embedding       Json?
+  tags            Json     @default("[]")
+  relevanceScore  Float?
+  
+  source          KnowledgeSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+}
